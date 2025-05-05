@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Генератор сетки питания</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+
+
+        .controls {
+            display: flex;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 1200px;
+        }
+
+        .settings-column {
+            flex: 1;
+            padding: 0 10px;
+        }
+
+        .print-area {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .a4-container {
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            box-sizing: border-box;
+            margin-bottom: 20px;
+            overflow: hidden;
+            page-break-after: always;
+        }
+
+        .card-grid {
+            display: grid;
+            height: calc(100% - 20px);
+        }
+
+        .card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            break-inside: avoid;
+            overflow: hidden;
+            word-break: break-word;
+            box-sizing: border-box;
+        }
+
+        .day-number {
+            font-weight: bold;
+            line-height: 100%;
+        }
+
+        .meal-type {
+            line-height: 100%;
+        }
+
+
+        .meal-types-list {
+            margin-top: 10px;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 5px;
+            border-radius: 4px;
+        }
+
+        .meal-type-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+        }
+
+        .remove-meal-type {
+            color: red;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        #generateBtn,
+        #printBtn {
+            margin-top: 20px;
+            padding: 8px;
+            background-color: aquamarine;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 16px;
+
+            &:hover {
+                box-shadow: 0 0 0 2px #000 inset;
+            }
+        }
+
+        .setting {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            input {
+                min-width: 50px;
+
+            }
+        }
+
+        .orientation {
+            flex-direction: column;
+            align-items: start;
+
+            h3 {
+                margin: 0;
+                margin-bottom: 6px;
+            }
+
+            &>div {
+                width: 100%;
+                display: flex;
+                justify-content: space-between;
+
+            }
+        }
+
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+
+            .controls {
+                display: none;
+            }
+
+            .a4-container {
+                box-shadow: none;
+                margin: 0;
+            }
+
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="controls">
+        <div class="settings-column">
+            <h2>Настройки страницы</h2>
+            <div class="setting orientation">
+                <h3>Ориентация</h3>
+                <div>
+                    <label for="vertical">Вертикально</label>
+                    <input type="radio" id="vertical" value="vertical" name="orientation" checked>
+                </div>
+                <div>
+                    <label for="horizontal">Горизонтально</label>
+                    <input type="radio" id="horizontal" value="horizontal" name="orientation">
+                </div>
+            </div>
+            <div class="setting">
+                <label for="totalDays">Количество дней:</label>
+                <input type="number" id="totalDays" min="1" max="31" value="7">
+            </div>
+            <div class="setting">
+                <label for="minCardHeight">Высота карточки (мм):</label>
+                <input type="number" id="minCardHeight" min="10" max="100" value="30">
+            </div>
+            <div class="setting">
+                <label for="cardsGap">Расстояние между карточками (мм):</label>
+                <input type="number" id="cardsGap" min="0" max="20" value="0.2" step="0.1">
+            </div>
+            <div class="setting">
+                <label for="pagePadding">Отступ от краев листа (мм):</label>
+                <input type="number" id="pagePadding" min="0" max="20" value="1" step="0.1">
+            </div>
+            <button id="generateBtn">Сгенерировать сетку</button>
+            <button id="printBtn">Печать</button>
+            <div id="pageCount" class="no-print" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="settings-column">
+            <h2>Тип карточек</h2>
+            <div>
+                <input type="text" id="newMealType" placeholder="Время приёма пищи">
+                <button id="addMealTypeBtn">Добавить</button>
+            </div>
+            <div class="meal-types-list" id="mealTypesList">
+                <div class="meal-type-item">
+                    <span>Завтрак</span>
+                    <span class="remove-meal-type" data-index="0">×</span>
+                </div>
+                <div class="meal-type-item">
+                    <span>Обед</span>
+                    <span class="remove-meal-type" data-index="1">×</span>
+                </div>
+                <div class="meal-type-item">
+                    <span>Полдник</span>
+                    <span class="remove-meal-type" data-index="2">×</span>
+                </div>
+                <div class="meal-type-item">
+                    <span>Ужин</span>
+                    <span class="remove-meal-type" data-index="3">×</span>
+                </div>
+            </div>
+            <div id="mealTypesCount">Карточек в строке: 0</div>
+        </div>
+
+
+        <div class="settings-column">
+            <h2>Настройки карточки</h2>
+            <div class="setting">
+                <label for="cardBorderRadius">Скругление углов (px):</label>
+                <input type="number" id="cardBorderRadius" min="0" max="100" value="0">
+            </div>
+            <div class="setting">
+                <label for="cardBackground">Цвет фона:</label>
+                <input type="color" id="cardBackground" value="#f9f9f9">
+            </div>
+            <div class="setting">
+                <label for="cardBorderWidth">Толщина рамки (px):</label>
+                <input type="number" id="cardBorderWidth" min="0" max="10" value="1">
+            </div>
+            <div class="setting">
+                <label for="cardBorderColor">Цвет рамки:</label>
+                <input type="color" id="cardBorderColor" value="#dddddd">
+            </div>
+        </div>
+
+        <div class="settings-column">
+            <h2>Стиль текста</h2>
+            <div class="setting">
+                <label for="dayTextSize">День (размер текста):</label>
+                <input type="number" id="dayTextSize" min="10" max="100" value="32">
+            </div>
+            <div class="setting">
+                <label for="dayTextColor">День (цвет текста):</label>
+                <input type="color" id="dayTextColor" value="#000000">
+            </div>
+            <div class="setting">
+                <label for="timeTextSize">Время (размер текста):</label>
+                <input type="number" id="timeTextSize" min="10" max="100" value="24">
+            </div>
+            <div class="setting">
+                <label for="timeTextColor">День (цвет текста):</label>
+                <input type="color" id="timeTextColor" value="#555555">
+            </div>
+            <div class="setting">
+                <label for="textGap">Растояние между текстом</label>
+                <input type="number" id="textGap" min="0" max="100" value="0">
+            </div>
+        </div>
+
+    </div>
+
+    <div class="print-area" id="printArea"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+
+            // Начальные данные
+            let MEAL_TYPES = ['Завтрак', 'Обед', 'Полдник', 'Ужин'];;
+            let A4_WIDTH_MM = 210;
+            let A4_HEIGHT_MM = 297;
+
+            // Элементы управления
+            const generateBtn = document.getElementById('generateBtn');
+            const printBtn = document.getElementById('printBtn');
+            const printArea = document.getElementById('printArea');
+            const pageCountElement = document.getElementById('pageCount');
+            const newMealTypeInput = document.getElementById('newMealType');
+            const addMealTypeBtn = document.getElementById('addMealTypeBtn');
+            const mealTypesList = document.getElementById('mealTypesList');
+            const mealTypesCount = document.getElementById('mealTypesCount');
+
+            // Обработчики событий
+            generateBtn.addEventListener('click', generateGrid);
+            printBtn.addEventListener('click', () => window.print());
+            addMealTypeBtn.addEventListener('click', addMealType);
+            newMealTypeInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addMealType();
+            });
+
+            // Функция добавления нового типа приёма пищи
+            function addMealType() {
+                const newType = newMealTypeInput.value.trim();
+                if (newType && !MEAL_TYPES.includes(newType)) {
+                    MEAL_TYPES.push(newType);
+                    updateMealTypesList();
+                    newMealTypeInput.value = '';
+                }
+            }
+
+            // Функция удаления типа приёма пищи
+            function removeMealType(index) {
+                MEAL_TYPES.splice(index, 1);
+                updateMealTypesList();
+            }
+
+            // Обновление списка типов приёмов пищи
+            function updateMealTypesList() {
+                mealTypesList.innerHTML = '';
+                MEAL_TYPES.forEach((type, index) => {
+                    const item = document.createElement('div');
+                    item.className = 'meal-type-item';
+                    item.innerHTML = `
+                        <span>${type}</span>
+                        <span class="remove-meal-type" data-index="${index}">×</span>
+                    `;
+                    mealTypesList.appendChild(item);
+                });
+
+                // Добавляем обработчики для кнопок удаления
+                document.querySelectorAll('.remove-meal-type').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        removeMealType(parseInt(e.target.dataset.index));
+                    });
+                });
+
+                mealTypesCount.textContent = `Добавлено типов: ${MEAL_TYPES.length}`;
+            }
+
+            function generateGrid() {
+                if (MEAL_TYPES.length === 0) {
+                    alert('Добавьте хотя бы один тип приёма пищи!');
+                    return;
+                }
+
+                const isVertical = document.getElementById('vertical').checked;
+
+                A4_WIDTH_MM = isVertical ? 210 : 297;
+                A4_HEIGHT_MM = isVertical ? 297 : 210;
+
+                // Получаем параметры страницы
+
+                const totalDays = parseInt(document.getElementById('totalDays').value);
+                const minCardHeight = parseInt(document.getElementById('minCardHeight').value);
+                const cardsGap = parseFloat(document.getElementById('cardsGap').value);
+                const pagePadding = parseFloat(document.getElementById('pagePadding').value);
+
+                // Получаем параметры карточек
+                const cardBorderRadius = parseInt(document.getElementById('cardBorderRadius').value);
+                const cardBackground = document.getElementById('cardBackground').value;
+                const cardBorderColor = document.getElementById('cardBorderColor').value;
+                const cardBorderWidth = parseInt(document.getElementById('cardBorderWidth').value);
+
+                // Получаем параметры текста
+                const dayFontSize = parseInt(document.getElementById('dayTextSize').value);
+                const dayFontColor = document.getElementById('dayTextColor').value;
+                const timeFontSize = parseInt(document.getElementById('timeTextSize').value);
+                const timeFontColor = document.getElementById('timeTextColor').value;
+                const textGap = document.getElementById('textGap').value;
+
+                // Очищаем предыдущую сетку
+                printArea.innerHTML = '';
+
+                // Рассчитываем количество строк на странице
+                const availableHeightPerPage = A4_HEIGHT_MM - (pagePadding * 2);
+                const cardHeightWithGap = minCardHeight + cardsGap;
+                const rowsPerPage = Math.floor(availableHeightPerPage / cardHeightWithGap);
+
+                // Рассчитываем количество страниц
+                const daysPerPage = rowsPerPage;
+                const totalPages = Math.ceil(totalDays / daysPerPage);
+
+                // Обновляем счетчик страниц
+                pageCountElement.textContent = `Всего страниц: ${totalPages}`;
+
+                // Генерируем страницы
+                for (let pageIndex = 0; pageIndex < totalPages; pageIndex++) {
+                    const startDay = pageIndex * daysPerPage + 1;
+                    const endDay = Math.min(startDay + daysPerPage - 1, totalDays);
+
+                    const pageContainer = createPageContainer(pagePadding);
+                    const cardGrid = createCardGrid(minCardHeight, cardsGap, MEAL_TYPES.length);
+
+                    // Добавляем карточки для каждого дня на странице
+                    for (let day = startDay; day <= endDay; day++) {
+                        addDayCards(cardGrid, day, {
+                            borderRadius: cardBorderRadius,
+                            background: cardBackground,
+                            borderColor: cardBorderColor,
+                            borderWidth: cardBorderWidth,
+                            dayFontSize,
+                            timeFontSize,
+                            dayFontColor,
+                            timeFontColor,
+                            textGap
+                        });
+                    }
+
+                    pageContainer.appendChild(cardGrid);
+                    printArea.appendChild(pageContainer);
+                }
+            }
+
+            function createPageContainer(padding) {
+                const container = document.createElement('div');
+                container.className = 'a4-container';
+                container.style.width = `${A4_WIDTH_MM}mm`;
+                container.style.height = `${A4_HEIGHT_MM}mm`;
+                container.style.padding = `${padding}mm`;
+                return container;
+            }
+
+            function createCardGrid(cardHeight, gap, columns) {
+                const grid = document.createElement('div');
+                grid.className = 'card-grid';
+                grid.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+                grid.style.gridAutoRows = `${cardHeight}mm`;
+                grid.style.gap = `${gap}mm`;
+                return grid;
+            }
+
+            function addDayCards(grid, day, cardStyle) {
+                MEAL_TYPES.forEach(mealType => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+
+                    // Применяем стили к карточке
+                    card.style.borderRadius = `${cardStyle.borderRadius}px`;
+                    card.style.backgroundColor = cardStyle.background;
+                    card.style.border = `${cardStyle.borderWidth}px solid ${cardStyle.borderColor}`;
+                    card.style.gap = `${cardStyle.textGap}px`
+
+                    // Добавляем содержимое карточки
+                    const dayNumber = document.createElement('div');
+                    dayNumber.className = 'day-number';
+                    dayNumber.textContent = day;
+                    dayNumber.style.fontSize = `${cardStyle.dayFontSize}px`
+                    dayNumber.style.color = `${cardStyle.dayFontColor}`
+
+                    const mealTypeElement = document.createElement('div');
+                    mealTypeElement.className = 'meal-type';
+                    mealTypeElement.textContent = mealType.toLowerCase();
+                    mealTypeElement.style.fontSize = `${cardStyle.timeFontSize}px`
+                    mealTypeElement.style.color = `${cardStyle.timeFontColor}`
+
+                    card.appendChild(dayNumber);
+                    card.appendChild(mealTypeElement);
+                    grid.appendChild(card);
+                });
+            }
+
+            document.querySelectorAll('.remove-meal-type').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    removeMealType(parseInt(e.target.dataset.index));
+                });
+            });
+
+            mealTypesCount.textContent = `Карточек в строке: ${MEAL_TYPES.length}`;
+            generateGrid()
+        });
+
+    </script>
+</body>
+
+</html>
